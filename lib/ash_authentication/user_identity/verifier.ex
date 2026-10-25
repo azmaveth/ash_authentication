@@ -10,6 +10,8 @@ defmodule AshAuthentication.UserIdentity.Verifier do
   use Spark.Dsl.Transformer
   alias AshAuthentication.UserIdentity.Info
   import AshAuthentication.Utils
+  import AshAuthentication.Validations
+  import AshAuthentication.Validations.Action
 
   @doc false
   @impl true
@@ -31,8 +33,19 @@ defmodule AshAuthentication.UserIdentity.Verifier do
   @spec transform(map) ::
           :ok | {:ok, map} | {:error, term} | {:warn, map, String.t() | [String.t()]} | :halt
   def transform(dsl_state) do
-    with :ok <- validate_domain_presence(dsl_state) do
-      validate_user_resource(dsl_state)
+    with :ok <- validate_domain_presence(dsl_state),
+         :ok <- validate_user_resource(dsl_state) do
+      validate_read_action(dsl_state)
+    end
+  end
+
+  # Checked here rather than in the transformer, which runs before
+  # `defaults [:read]` is expanded into an action.
+  defp validate_read_action(dsl_state) do
+    with {:ok, action_name} <- Info.user_identity_read_action_name(dsl_state),
+         {:ok, action} <- validate_action_exists(dsl_state, action_name),
+         :ok <- validate_field_in_values(action, :type, [:read]) do
+      validate_field_in_values(action, :primary?, [true])
     end
   end
 

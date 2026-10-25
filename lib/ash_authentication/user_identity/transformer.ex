@@ -118,11 +118,10 @@ defmodule AshAuthentication.UserIdentity.Transformer do
          :ok <-
            validate_destroy_action(dsl_state, destroy_action),
          {:ok, read_action} <-
-           UserIdentity.Info.user_identity_read_action_name(dsl_state),
-         {:ok, dsl_state} <-
-           maybe_build_action(dsl_state, read_action, &build_read_action(&1, read_action)),
-         :ok <- validate_read_action(dsl_state, read_action) do
-      {:ok, dsl_state}
+           UserIdentity.Info.user_identity_read_action_name(dsl_state) do
+      # The read action is validated by `AshAuthentication.UserIdentity.Verifier`:
+      # this transformer runs before `defaults [:read]` is expanded.
+      maybe_build_action(dsl_state, read_action, &build_read_action(&1, read_action))
     end
   end
 
@@ -335,16 +334,6 @@ defmodule AshAuthentication.UserIdentity.Transformer do
 
   defp build_read_action(_dsl_state, action_name) do
     Transformer.build_entity(Resource.Dsl, [:actions], :read, name: action_name, primary?: true)
-  end
-
-  defp validate_read_action(dsl_state, action_name) do
-    with {:ok, action} <- validate_action_exists(dsl_state, action_name),
-         :ok <- validate_field_in_values(action, :type, [:read]),
-         :ok <- validate_field_in_values(action, :primary?, [true]) do
-      :ok
-    else
-      {:error, reason} -> {:error, reason}
-    end
   end
 
   defp find_identity(dsl_state, keys) do

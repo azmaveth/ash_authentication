@@ -39,6 +39,42 @@ defmodule AshAuthentication.UserIdentity.TransformerTest do
     end
   end
 
+  defmodule ReadActionTestDomain do
+    @moduledoc false
+    use Ash.Domain, validate_config_inclusion?: false
+
+    resources do
+      allow_unregistered? true
+    end
+  end
+
+  describe "the read action" do
+    test "a default read action is accepted" do
+      defmodule IdentityWithDefaultRead do
+        @moduledoc false
+        use Ash.Resource,
+          data_layer: AshPostgres.DataLayer,
+          domain: ReadActionTestDomain,
+          extensions: [AshAuthentication.UserIdentity]
+
+        postgres do
+          table "user_identities"
+          repo(Example.Repo)
+        end
+
+        actions do
+          defaults [:read]
+        end
+
+        user_identity do
+          user_resource Example.User
+        end
+      end
+
+      assert %{type: :read, primary?: true} = Info.action(IdentityWithDefaultRead, :read)
+    end
+  end
+
   describe "the upsert action" do
     test "the transformer marks the `oauth_tokens` argument as sensitive" do
       argument =
